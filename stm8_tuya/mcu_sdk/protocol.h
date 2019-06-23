@@ -4,8 +4,8 @@
 #define MCU_VER "1.0"
 
 #ifndef SUPPORT_MCU_FIRM_UPDATE
-#define WIFI_UART_QUEUE_LMT             24
-#define WIFI_UART_RECV_BUF_LMT          24
+#define WIFI_UART_QUEUE_LMT             32
+#define WIFI_UART_RECV_BUF_LMT          64
 #else
 #define WIFI_UART_QUEUE_LMT             128
 #define WIFI_UART_RECV_BUF_LMT          300
@@ -13,7 +13,7 @@
 
 #define WIFIR_UART_SEND_BUF_LMT         24
 
-#define         WIFI_CONTROL_SELF_MODE
+//#define         WIFI_CONTROL_SELF_MODE
 #ifdef          WIFI_CONTROL_SELF_MODE
   #define     WF_STATE_KEY
   #define     WF_RESERT_KEY

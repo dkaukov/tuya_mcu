@@ -35,12 +35,14 @@
 #define		ERROR_E3					0x04
 #define		ERROR_E4					0x08
 
+#define setBit(reg, bit) (reg = reg | (1 << bit))
+#define clearBit(reg, bit) (reg = reg & ~(1 << bit))
+#define toggleBit(reg, bit) (reg = reg ^ (1 << bit))
+
 typedef struct {
   uint32_t magic_code;
   uint8_t power_switch;
-  uint32_t brightness;
-  uint32_t frequency;
-
+  uint8_t brightness;
 } TYPE_BUFFER_S;
 
 MAINWORK_EXT TYPE_BUFFER_S FlashBuffer;

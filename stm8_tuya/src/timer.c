@@ -39,7 +39,7 @@ void TIM1_Config(void)
   TIM1->CCR4H = TIM1_CCR4H_RESET_VALUE;
   TIM1->CCR4L = TIM1_CCR4L_RESET_VALUE;
   TIM1->OISR  = TIM1_OISR_RESET_VALUE;
-  TIM1->EGR   = 0x01; /* TIM1_EGR_UG */
+  TIM1->EGR   = 0x00; /* TIM1_EGR_UG */
   TIM1->DTR   = TIM1_DTR_RESET_VALUE;
   TIM1->BKR   = TIM1_BKR_RESET_VALUE;
   TIM1->RCR   = TIM1_RCR_RESET_VALUE;
@@ -53,55 +53,19 @@ void TIM1_Config(void)
 
   /* Set the Prescaler value */
   TIM1->PSCRH = (uint8_t)(0x00);
-  TIM1->PSCRL = (uint8_t)(0x10 - 1);  // 16 (used value is register + 1)
+  TIM1->PSCRL = (uint8_t)(15);  // 16 (used value is register + 1)
   // prescaler on 16 gives 1 tick per us
 
   /* Select the Counter Mode */
-  TIM1->CR1 = (uint8_t)((uint8_t)(TIM1->CR1 & (uint8_t)(~(TIM1_CR1_CMS | TIM1_CR1_DIR)))
-                        | (uint8_t)(TIM1_COUNTERMODE_UP));
-  
+  //TIM1->CR1 = (uint8_t)((uint8_t)(TIM1->CR1 & (uint8_t)(~(TIM1_CR1_CMS | TIM1_CR1_DIR)))
+  //                      | (uint8_t)(TIM1_COUNTERMODE_UP));
+  TIM1->CR1 |= (TIM1_CR1_ARPE | TIM1_COUNTERMODE_UP);
+
   //TIM1_ITConfig(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4, ENABLE);
-  TIM1->IER |= (uint8_t)(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4);
+  //TIM1->IER |= (uint8_t)(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4);
 
   /* TIM1 counter enable */
   TIM1_Cmd(ENABLE);
-
-  TIM2->CR1 = (uint8_t)TIM2_CR1_RESET_VALUE;
-  TIM2->IER = (uint8_t)TIM2_IER_RESET_VALUE;
-  TIM2->SR2 = (uint8_t)TIM2_SR2_RESET_VALUE;
-  
-  /* Disable channels */
-  TIM2->CCER1 = (uint8_t)TIM2_CCER1_RESET_VALUE;
-  TIM2->CCER2 = (uint8_t)TIM2_CCER2_RESET_VALUE;
-  
-  
-  /* Then reset channel registers: it also works if lock level is equal to 2 or 3 */
-  TIM2->CCER1 = (uint8_t)TIM2_CCER1_RESET_VALUE;
-  TIM2->CCER2 = (uint8_t)TIM2_CCER2_RESET_VALUE;
-  TIM2->CCMR1 = (uint8_t)TIM2_CCMR1_RESET_VALUE;
-  TIM2->CCMR2 = (uint8_t)TIM2_CCMR2_RESET_VALUE;
-  TIM2->CCMR3 = (uint8_t)TIM2_CCMR3_RESET_VALUE;
-  TIM2->CNTRH = (uint8_t)TIM2_CNTRH_RESET_VALUE;
-  TIM2->CNTRL = (uint8_t)TIM2_CNTRL_RESET_VALUE;
-  TIM2->PSCR = (uint8_t)TIM2_PSCR_RESET_VALUE;
-  TIM2->ARRH  = (uint8_t)TIM2_ARRH_RESET_VALUE;
-  TIM2->ARRL  = (uint8_t)TIM2_ARRL_RESET_VALUE;
-  TIM2->CCR1H = (uint8_t)TIM2_CCR1H_RESET_VALUE;
-  TIM2->CCR1L = (uint8_t)TIM2_CCR1L_RESET_VALUE;
-  TIM2->CCR2H = (uint8_t)TIM2_CCR2H_RESET_VALUE;
-  TIM2->CCR2L = (uint8_t)TIM2_CCR2L_RESET_VALUE;
-  TIM2->CCR3H = (uint8_t)TIM2_CCR3H_RESET_VALUE;
-  TIM2->CCR3L = (uint8_t)TIM2_CCR3L_RESET_VALUE;
-  TIM2->SR1 = (uint8_t)TIM2_SR1_RESET_VALUE;
-
-  /* Set the Prescaler value */
-  TIM2->PSCR = (uint8_t)(TIM2_PRESCALER_1);
-  /* Set the Autoreload value */
-  TIM2->ARRH = (uint8_t)(0xFF);
-  TIM2->ARRL = (uint8_t)(0xFF);
-  TIM2->IER |= (uint8_t)TIM2_IT_UPDATE;
-
-  TIM2->CR1 |= (uint8_t)TIM2_CR1_CEN;
 }
 
 /**
@@ -172,12 +136,8 @@ void TIM1_Cmd(FunctionalState NewState)
 
 uint16_t TIM1_GetCounter(void)
 {
-  uint16_t tmpcntr = 0;
-  
-  tmpcntr = ((uint16_t)TIM1->CNTRH << 8);
-  
-  /* Get the Counter Register value */
-  return (uint16_t)(tmpcntr | (uint16_t)(TIM1->CNTRL));
+  uint8_t tmph =  TIM1->CNTRH;
+  return tmph << 8 | TIM1->CNTRL;
 }
 
 /**
@@ -216,42 +176,4 @@ FlagStatus TIM1_GetFlagStatus(TIM1_FLAG_TypeDef TIM1_FLAG)
     bitstatus = RESET;
   }
   return (FlagStatus)(bitstatus);
-}
-
-void TIM2_ClearITPendingBit(TIM2_IT_TypeDef TIM2_IT)
-{
-  /* Clear the IT pending Bit */
-  TIM2->SR1 = (uint8_t)(~TIM2_IT);
-}
-
-FlagStatus TIM2_GetFlagStatus(TIM2_FLAG_TypeDef TIM2_FLAG)
-{
-  FlagStatus bitstatus = RESET;
-  uint8_t tim2_flag_l = 0, tim2_flag_h = 0;
-  
-  tim2_flag_l = (uint8_t)(TIM2->SR1 & (uint8_t)TIM2_FLAG);
-  tim2_flag_h = (uint8_t)((uint16_t)TIM2_FLAG >> 8);
-  
-  if ((tim2_flag_l | (uint8_t)(TIM2->SR2 & tim2_flag_h)) != (uint8_t)RESET )
-  {
-    bitstatus = SET;
-  }
-  else
-  {
-    bitstatus = RESET;
-  }
-  return (FlagStatus)bitstatus;
-}
-
-uint16_t TIM2_GetCounter(void)
-{
-  /* Get the Counter Register value */
-  return (uint16_t)( ((uint16_t)TIM2->CNTRH << 8)| (uint16_t)(TIM2->CNTRL));
-}
-
-void TIM2_SetCounter(uint16_t Counter)
-{
-  /* Set the Counter Register value */
-  TIM2->CNTRH = (uint8_t)(Counter >> 8);
-  TIM2->CNTRL = (uint8_t)(Counter);
 }

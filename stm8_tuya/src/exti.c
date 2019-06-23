@@ -12,6 +12,7 @@ void EXTI_Config(void)
   // PORTD
   EXTI->CR1 &= (uint8_t)(~EXTI_CR1_PDIS);
   EXTI->CR1 |= (uint8_t)((uint8_t)(EXTI_SENSITIVITY_RISE_ONLY) << 6);
+  //EXTI->CR1 |= (uint8_t)((uint8_t)(EXTI_SENSITIVITY_RISE_FALL) << 6);
 
   
 }

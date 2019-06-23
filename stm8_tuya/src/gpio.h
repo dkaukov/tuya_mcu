@@ -8,7 +8,10 @@
 #define LED_1 GPIO_PIN_4
 #define LED_2 GPIO_PIN_5
 #define LED_3 GPIO_PIN_3
+#define PWM_PORT GPIOC
 #define PWM GPIO_PIN_7
+#define PWM_ON  PWM_PORT->ODR |= PWM
+#define PWM_OFF PWM_PORT->ODR &= ~PWM
 
 #define BUTTON_PORT GPIOA
 #define BUTTON_1 GPIO_PIN_2

@@ -21,7 +21,6 @@ void all_data_update(void)
 {
   mcu_dp_bool_update(DPID_SWITCH,FlashBuffer.power_switch);
   mcu_dp_value_update(DPID_BRIGHTNESS,FlashBuffer.brightness);
-  mcu_dp_value_update(DPID_FREQUENCY,FlashBuffer.frequency);
 }
 
 void switch_update(void)
@@ -34,14 +33,9 @@ void brightness_update(void)
   mcu_dp_value_update(DPID_BRIGHTNESS,FlashBuffer.brightness);
 }
 
-void frequency_update(void)
-{
-  mcu_dp_value_update(DPID_FREQUENCY,FlashBuffer.frequency);
-}
-
 static unsigned char dp_download_switch_handle(const unsigned char value[], unsigned short length)
 {
-  unsigned char ret;
+  //unsigned char ret;
   unsigned char power_switch;
   
   power_switch = mcu_get_dp_download_bool(value,length);
@@ -49,21 +43,25 @@ static unsigned char dp_download_switch_handle(const unsigned char value[], unsi
   FlashBuffer.power_switch = power_switch;
 
   storeeprom = 1;
+  return SUCCESS;
   
+/*
   ret = mcu_dp_bool_update(DPID_SWITCH,power_switch);
   if(ret == SUCCESS)
     return SUCCESS;
   else
     return ERROR;
+*/
 }
 
 static unsigned char dp_download_brightness_handle(const unsigned char value[], unsigned short length)
 {
-  unsigned char ret;
+  //unsigned char ret;
   unsigned int  brightness;
   
   brightness = mcu_get_dp_download_value(value,length);
-    
+
+  /*
   if(brightness < FlashBuffer.brightness){
     LED_PORT->ODR ^= LED_3;
     Delay(0x3FF);
@@ -74,34 +72,20 @@ static unsigned char dp_download_brightness_handle(const unsigned char value[], 
     Delay(0x3FF);
     LED_PORT->ODR ^= LED_1;
   }
+  */
 
   FlashBuffer.brightness = brightness;
 
-  //storeeprom = 1;
+  return SUCCESS;
 
+/*
   ret = mcu_dp_value_update(DPID_BRIGHTNESS,brightness);
   if(ret == SUCCESS)
     return SUCCESS;
   else
     return ERROR;
+*/
 }
-
-static unsigned char dp_download_frequency_handle(const unsigned char value[], unsigned short length)
-{
-  unsigned char ret;
-  unsigned int  frequency;
-  
-  frequency = mcu_get_dp_download_value(value,length);
-    
-  FlashBuffer.frequency = frequency;
-
-  ret = mcu_dp_value_update(DPID_FREQUENCY,frequency);
-  if(ret == SUCCESS)
-    return SUCCESS;
-  else
-    return ERROR;
-}
-
 
 #ifdef SUPPORT_MCU_RTC_CHECK
 void mcu_write_rtctime(unsigned char time[])

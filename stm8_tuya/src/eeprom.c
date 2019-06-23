@@ -13,7 +13,6 @@ void EEPROM_Config(void)
   FLASH->CR1 &= (uint8_t)(~FLASH_CR1_IE);  // Disable interrupts
   EEPROM_Unlock();
 
-  EEPROM_Read(0, (uint8_t *)&FlashBuffer, sizeof(FlashBuffer));
 }
 
 void EEPROM_Unlock(void)

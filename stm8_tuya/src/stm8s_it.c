@@ -40,13 +40,15 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define OFFSET 300
+#define OFFSET 150
 //#define OFFSET 600
+#define TRIAC_HOLD_TIME 10
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-uint16_t zero_x = 0;
-uint16_t duty_cycle = 0;
-uint16_t counter = 0;
+uint32_t zero_x = 0;
+uint16_t tim1_value = 0;
+//uint16_t duty_cycle = 0;
+//uint16_t counter = 0;
 //uint32_t cf = 1;
 //extern TYPE_BUFFER_S FlashBuffer;
 
@@ -121,64 +123,62 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
   * @param  None
   * @retval None
   */
+ 
 INTERRUPT_HANDLER(EXTI_PORTD_IRQHandler, 6)
 {
-  uint16_t tmp_zero_x = TIM1_GetCounter();
-  frequency = TIM2_GetCounter();
-  TIM1_SetCounter(0);
-  if(!edges){
-    TIM2_SetCounter(0);
-    overflow = 0;
-    frequency = 0;
-  }
-  else{
-    frequency += (overflow * 65536);
-    frequency /= edges;
-  }
-  //frequency = (((overflow * 65536) ) / edges);
-  edges++;
-  //TIM2_SetCounter(0);
-  //overflow = 0;
-  TIM1->IER &= (uint8_t)(~(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4));
+  uint16_t tim1_temp_value = TIM1_GetCounter();
   if ((GPIO_ReadInputData(GPIOD) & GPIO_PIN_2) != 0) { // Rising edge only
-    if(FlashBuffer.brightness <= 244 || !FlashBuffer.power_switch){
-      GPIO_WriteLow(GPIOC, GPIO_PIN_7);
+    uint16_t tmp_zero_x = tim1_temp_value - tim1_value;
+    LED_PORT->ODR ^= LED_1;
+    tim1_value = tim1_temp_value;
+    TIM1->IER &= (uint8_t)(~(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4));
+    zero_x -= (zero_x >> 3);
+    zero_x += (tmp_zero_x >> 3);
+    if(FlashBuffer.power_switch && FlashBuffer.brightness > 0 && (zero_x > 0x2000)) {
+      uint16_t duty_cycle = (zero_x  - (uint16_t)((zero_x * FlashBuffer.brightness) >> 8)) >> 1;
+      uint16_t period = zero_x;
+      if (duty_cycle >= (OFFSET + 600)) { 
+        PWM_OFF;
+        TIM1_SetCompare1(tim1_temp_value + duty_cycle - OFFSET);
+        TIM1_SetCompare2(tim1_temp_value + (period / 2) - OFFSET);
+        //TIM1_SetCompare2(tim1_temp_value + duty_cycle - OFFSET + TRIAC_HOLD_TIME);
+        TIM1_SetCompare3(tim1_temp_value + (period / 2) +  duty_cycle - OFFSET);
+        TIM1_SetCompare4(tim1_temp_value + period - OFFSET);
+        //TIM1_SetCompare4(tim1_temp_value + (period / 2) +  duty_cycle - OFFSET + TRIAC_HOLD_TIME);
+        TIM1->IER |= (uint8_t)(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4);
+      } else {
+        PWM_ON;
+      } 
+    } else {
+      PWM_OFF;
     }
-    if(storeeprom) {
-      //EEPROM_Erase(0, sizeof(FlashBuffer));
-      EEPROM_Program(0, (uint8_t *)&FlashBuffer, sizeof(FlashBuffer));
-      storeeprom = 0;
-    }
-    //if(TIM1_GetCounter() >  0x6000 && TIM1_GetCounter() < 0x9000 && TIM1_GetCounter() < (zero_x - 500)) { // Make sure zero_x is at a sane value
-    //if(TIM1_GetCounter() >  0x3000 && TIM1_GetCounter() < 0x4800 && TIM1_GetCounter() < (zero_x - 500)) { // Make sure zero_x is at a sane value
-    if(tmp_zero_x >  0x4000 && tmp_zero_x < 0x5000) { // && TIM1_GetCounter() < (zero_x - 500)) { // Make sure zero_x is at a sane value
-      if(counter < 255){ // Take an average over 255 (valid) measurements
-        if(counter){
-          zero_x += tmp_zero_x;
-          zero_x /= 2;
-        }
-        else {
-          zero_x = tmp_zero_x;
-        }
-        counter++;
-      }
-    }
-    if(FlashBuffer.brightness <= 244 || !FlashBuffer.power_switch){
-      GPIO_WriteLow(GPIOC, GPIO_PIN_7);
-    }
-    if(FlashBuffer.power_switch && FlashBuffer.brightness > 11){// && FlashBuffer.brightness <= 244){
-      duty_cycle = ((zero_x / 2)  * (1 - (float)FlashBuffer.brightness * (1. / 255)));
-      //TIM1_TimeBaseInit(8, TIM1_COUNTERMODE_UP, zero_x, 0);
-      TIM1_SetCompare1(duty_cycle - OFFSET);
-      TIM1_SetCompare2((zero_x / 2) - OFFSET );
-      TIM1_SetCompare3(((zero_x / 2) +  duty_cycle - OFFSET));
-      TIM1_SetCompare4(zero_x - OFFSET);
-      TIM1->IER |= (uint8_t)(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4);
-      //TIM1_Cmd(ENABLE);
-    }
-    //TIM1_Cmd(ENABLE); // Always enable for button-timing etc (may move to a second timer?)
   }
 }
+
+/*
+INTERRUPT_HANDLER(EXTI_PORTD_IRQHandler, 6)
+{
+  uint16_t tim1_temp_value = TIM1_GetCounter();
+  uint16_t tmp_zero_x = tim1_temp_value - tim1_value;
+  tim1_value = tim1_temp_value;
+  TIM1->IER &= (uint8_t)(~(TIM1_IT_CC1 | TIM1_IT_CC2 | TIM1_IT_CC3 | TIM1_IT_CC4));
+  zero_x -= (zero_x >> 1);
+  zero_x += (tmp_zero_x >> 1);
+  if(FlashBuffer.power_switch && FlashBuffer.brightness > 0 && (zero_x > 0x2000)) {
+    uint16_t duty_cycle = (zero_x  - (uint16_t)((zero_x * FlashBuffer.brightness) >> 8));
+    if (duty_cycle >= (OFFSET + 300)) { 
+      GPIO_WriteLow(GPIOC, GPIO_PIN_7);
+      TIM1_SetCompare1(tim1_temp_value + duty_cycle - OFFSET);
+      TIM1_SetCompare2(tim1_temp_value + duty_cycle - OFFSET + 300);
+      TIM1->IER |= (uint8_t)(TIM1_IT_CC1 | TIM1_IT_CC2);
+    } else {
+      GPIO_WriteHigh(GPIOC, GPIO_PIN_7);
+    } 
+  } else {
+    GPIO_WriteLow(GPIOC, GPIO_PIN_7);
+  }
+}
+*/
 
 /**
   * @brief External Interrupt PORTE Interrupt routine.
@@ -254,17 +254,7 @@ INTERRUPT_HANDLER(TIM1_UPD_OVF_TRG_BRK_IRQHandler, 11)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-  if (TIM1_GetFlagStatus(TIM1_FLAG_UPDATE) == SET){
-    //TIM1_Cmd(DISABLE);
-    TIM1_ClearITPendingBit(TIM1_IT_UPDATE);
-    //TIM1_SetCounter(0);
-    /*
-    if(FlashBuffer.brightness <= 244) {
-      GPIO_WriteLow(GPIOC, GPIO_PIN_7);
-    }
-    */
-  }
-}
+ }
 
 /**
   * @brief Timer1 Capture/Compare Interrupt routine.
@@ -276,34 +266,27 @@ INTERRUPT_HANDLER(TIM1_CAP_COM_IRQHandler, 12)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-  if (TIM1_GetFlagStatus(TIM1_FLAG_CC1) == SET || TIM1_GetFlagStatus(TIM1_FLAG_CC3) == SET){
-    if(FlashBuffer.brightness > 11) {
-      GPIO_WriteHigh(GPIOC, GPIO_PIN_7);
-      /*if(TIM1_GetFlagStatus(TIM1_FLAG_CC1)){
-        TIM1_SetCompare1(zero_x + duty_cycle - OFFSET);
-      }*/
-    }
-    TIM1_ClearITPendingBit(TIM1_IT_CC1);
-    TIM1_ClearITPendingBit(TIM1_IT_CC3);
+  uint8_t sr = TIM1->SR1;
+  if (sr & TIM1_FLAG_CC1) {
+    PWM_ON;
+    TIM1->SR1 &= ~(TIM1_IT_CC1);
+    LED_PORT->ODR ^= LED_2;
+  } 
+  if (sr & TIM1_FLAG_CC2) {
+    PWM_OFF;
+    TIM1->SR1 &= ~(TIM1_IT_CC2);
+    LED_PORT->ODR ^= LED_3;
   }
-  else if (TIM1_GetFlagStatus(TIM1_FLAG_CC2) == SET || TIM1_GetFlagStatus(TIM1_FLAG_CC4) == SET){
-    if(FlashBuffer.brightness <= 244) {
-      GPIO_WriteLow(GPIOC, GPIO_PIN_7);
-      /*if(TIM1_GetFlagStatus(TIM1_FLAG_CC2)){
-        TIM1_SetCompare2(zero_x +  (zero_x / 2) - OFFSET);
-      }*/
-    }
-    if (TIM1_GetFlagStatus(TIM1_FLAG_CC4) == SET){ 
-      //TIM1_Cmd(DISABLE);
-    }
-    TIM1_ClearITPendingBit(TIM1_IT_CC2);
-    TIM1_ClearITPendingBit(TIM1_IT_CC4);
-    /*
-    if(FlashBuffer.power_switch && FlashBuffer.brightness > 11) {
-      GPIO_WriteHigh(GPIOC, GPIO_PIN_7);
-    }
-    */
-  }
+  if (sr & TIM1_FLAG_CC3) {
+    PWM_ON;
+    TIM1->SR1 &= ~(TIM1_IT_CC3);
+    LED_PORT->ODR ^= LED_2;
+  } 
+  if (sr & TIM1_FLAG_CC4) {
+    PWM_OFF;
+    TIM1->SR1 &= ~(TIM1_IT_CC4);
+    LED_PORT->ODR ^= LED_3;
+  } 
 }
 
 #if defined (STM8S903) || defined (STM8AF622x)
@@ -409,7 +392,6 @@ INTERRUPT_HANDLER(TIM1_CAP_COM_IRQHandler, 12)
   */
  INTERRUPT_HANDLER(UART1_RX_IRQHandler, 18)
  {
-    LED_PORT->ODR ^= BUTTON_3;
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
